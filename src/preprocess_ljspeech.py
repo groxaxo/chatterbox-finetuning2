@@ -23,7 +23,7 @@ def preprocess_dataset_ljspeech(config, tts_engine: ChatterboxTTS):
     tts_engine.ve.to(device)
     tts_engine.s3gen.to(device)
     
-    logger(f"Processing dataset... Total: {len(data)}")
+    logger.info(f"Processing dataset... Total: {len(data)}")
 
     success_count = 0
 
