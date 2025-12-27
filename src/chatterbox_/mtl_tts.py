@@ -125,7 +125,7 @@ class Conditionals:
         torch.save(arg_dict, fpath)
 
     @classmethod
-    def load(cls, fpath, map_location=torch.device('cpu')):
+    def load(cls, fpath, map_location="cpu"):
         kwargs = torch.load(fpath, map_location=map_location, weights_only=True)
         return cls(T3Cond(**kwargs['t3']), kwargs['gen'])
 
@@ -163,7 +163,7 @@ class ChatterboxMultilingualTTS:
 
         ve = VoiceEncoder()
         ve.load_state_dict(
-            torch.load(ckpt_dir / "ve.pt", map_location=torch.device('cpu'), weights_only=True)
+            torch.load(ckpt_dir / "ve.pt", weights_only=True)
         )
         ve.to(device).eval()
 
@@ -176,7 +176,7 @@ class ChatterboxMultilingualTTS:
 
         s3gen = S3Gen()
         s3gen.load_state_dict(
-            torch.load(ckpt_dir / "s3gen.pt", map_location=torch.device('cpu'), weights_only=True)
+            torch.load(ckpt_dir / "s3gen.pt", weights_only=True)
         )
         s3gen.to(device).eval()
 

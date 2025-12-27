@@ -12,3 +12,4 @@ tqdm
 pandas
 safetensors
 tensorboard
+omegaconf

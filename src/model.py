@@ -94,6 +94,13 @@ class ChatterboxTrainerWrapper(torch.nn.Module):
             self.prompt_token_len = 150 
 
 
+    def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+        self.t3.gradient_checkpointing_enable(gradient_checkpointing_kwargs=gradient_checkpointing_kwargs)
+
+    def get_input_embeddings(self):
+        return self.t3.get_input_embeddings()
+
+
     def forward(
             self,
             text_tokens, 
