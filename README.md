@@ -35,6 +35,37 @@ This repository operates in two distinct modes, controlled by the `is_turbo` set
 *   **Smart Merging:** When you run `setup.py`, this large vocabulary is **automatically extended** with our multi-language grapheme set.
 *   **Best for:** Leveraging a strong English base for faster, high-quality fine-tuning on other languages.
 
+
+---
+
+## ⚠️ **CRITICAL: Switching Between Training Modes**
+
+If you plan to switch between **Standard Mode** (`is_turbo = False`) and **Turbo Mode** (`is_turbo = True`), you **MUST** completely delete the `pretrained_models` directory and the preprocessed_dir directory created with the `preprocess = True` operation before running the `setup.py` file again.
+
+The setup script replaces the token files in place. If you run the setup for Standard mode after setting up for Turbo (or vice versa), the token files will become corrupted and cause errors that are difficult to debug during training.
+
+**Correct Workflow for Changing Modes:**
+
+1. **DELETE the entire `pretrained_models` folder.**
+
+```bash
+
+# On Linux or macOS
+rm -rf pretrained_models
+
+# On Windows (in Command Prompt)
+rmdir /s /q pretrained_models
+```
+2. **Update** the `src/config.py` file, setting the `is_turbo` flag to your desired new mode and setting preprocess = True if it is False.
+
+3. **RUN setup.py again** to download and prepare the correct files for the new mode.
+
+```bash
+python setup.py
+
+```
+4. **Update** the `new_vocab_size` value in the `src/config.py` file with the new value provided by the setup script. Also ensure preprocess = True.
+
 ---
 
 
