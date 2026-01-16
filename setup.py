@@ -67,6 +67,7 @@ def merge_and_save_turbo_tokenizer():
     """
     Combines the GPT-2 tokenizer with the multilingual grapheme vocab.
     This enables Spanish and other language support for the Turbo model.
+    Also adds language tokens (e.g., [es], [fr]) as single tokens.
     """
     print("\n--- Turbo Vocab Merging for Multilingual Support ---")
     
@@ -98,6 +99,29 @@ def merge_and_save_turbo_tokenizer():
 
     unique_tokens_to_add = list(vocab_dict.keys())
     added_count = base_tokenizer.add_tokens(unique_tokens_to_add)
+    
+    # Add language tokens as single tokens (important for language-specific preprocessing)
+    # These must be single tokens for the model to properly learn language conditioning
+    language_codes = [
+        "ar", "da", "de", "el", "en", "es", "fi", "fr", "he", "hi", 
+        "it", "ja", "ko", "ms", "nl", "no", "pl", "pt", "ru", "sv", "sw", "tr", "zh"
+    ]
+    language_tokens = [f"[{code}]" for code in language_codes]
+    
+    # Only add tokens that aren't already in the tokenizer
+    new_lang_tokens = []
+    for token in language_tokens:
+        # Check if token is already a single token
+        token_ids = base_tokenizer.encode(token, add_special_tokens=False)
+        if len(token_ids) != 1:
+            new_lang_tokens.append(token)
+    
+    if new_lang_tokens:
+        lang_added = base_tokenizer.add_tokens(new_lang_tokens)
+        print(f"   Language tokens added: {lang_added} ({new_lang_tokens[:5]}...)")
+    else:
+        print("   All language tokens already exist as single tokens.")
+    
     final_len = len(base_tokenizer)
 
     print(f"Merging: {added_count} multilingual tokens added (including Spanish characters).")

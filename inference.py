@@ -7,7 +7,7 @@ import re
 from safetensors.torch import load_file
 
 
-from src.utils import setup_logger, trim_silence_with_vad
+from src.utils import setup_logger, trim_silence_with_vad, validate_vocab_size, validate_language_token
 from src.config import TrainConfig
 from src.chatterbox_.tts_turbo import ChatterboxTurboTTS
 from src.chatterbox_.models.t3.t3 import T3
@@ -72,6 +72,11 @@ def load_finetuned_engine(device):
         raise FileNotFoundError(FINETUNED_WEIGHTS)
 
     tts_engine.t3 = new_t3
+    
+    # Validate tokenizer/model compatibility
+    logger.info("Validating tokenizer and model compatibility...")
+    validate_vocab_size(tts_engine.tokenizer, cfg.new_vocab_size, logger)
+    validate_language_token(tts_engine.tokenizer, TARGET_LANGUAGE, logger)
     
     tts_engine.t3.to(device).eval()
     tts_engine.s3gen.to(device).eval()
