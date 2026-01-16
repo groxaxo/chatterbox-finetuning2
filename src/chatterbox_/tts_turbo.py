@@ -109,8 +109,10 @@ def preprocess_text_for_language(text: str, language_id: str = None) -> str:
     text = normalize("NFKD", text)
     
     # Prepend language token if specified
-    if language_id and language_id.lower() in SUPPORTED_LANGUAGES:
-        text = f"[{language_id.lower()}]{text}"
+    if language_id:
+        lang_lower = language_id.lower()
+        if lang_lower in SUPPORTED_LANGUAGES:
+            text = f"[{lang_lower}]{text}"
     
     return text
 

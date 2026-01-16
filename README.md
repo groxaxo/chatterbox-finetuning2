@@ -1,70 +1,19 @@
-# Chatterbox: Fine-Tuning Inference Kit for TTS & Turbo 🎙️
+# Chatterbox Turbo: Spanish Finetuning Kit 🎙️🇪🇸
 
-> ## 🚀 **NEW: Chatterbox Turbo Support ADDED!** 🚀
+> ## 🚀 **Focused on Chatterbox Turbo with Spanish Language Support** 🚀
 >
-> This repository now fully supports the fine-tuning of the **Chatterbox Turbo** model!
+> This repository is optimized for fine-tuning the **Chatterbox Turbo** model for **Spanish** language TTS.
 >
-> *   **What is it?** A faster, GPT-2 based architecture with a strong English foundation.
-> *   **Smart Multi-Language Support:** The setup script **automatically merges** Turbo's large English vocabulary with our custom 23-language grapheme set.
-> *   **The Result:** Get the speed and quality of Turbo while seamlessly fine-tuning on new languages like Turkish, French, Spanish, and more.
->
-> Read the **Standart vs. Turbo Modes** section below for details!
+> *   **Architecture:** GPT-2 based Turbo model with fast, high-quality speech synthesis.
+> *   **Multilingual Tokenizer:** The setup script **automatically merges** Turbo's large English vocabulary with the 23-language grapheme set, enabling proper Spanish character handling.
+> *   **Language-Aware Processing:** Text is preprocessed with NFKD normalization and language tokens (e.g., `[es]`) for optimal Spanish synthesis.
 
 
 ---
 
-A modular infrastructure for **fine-tuning** both **Chatterbox TTS (Standart)** and **Chatterbox Turbo** models with your own dataset and generating high-quality speech synthesis.
+A specialized infrastructure for **fine-tuning** the **Chatterbox Turbo** model with your own Spanish dataset and generating high-quality Spanish speech synthesis.
 
-This kit is specially designed to support **new languages** by intelligently extending the model's vocabulary for maximum performance and faster adaptation.
-
----
-
-
-## ⚠️ Understanding the Two Modes: Standart vs. Turbo
-
-This repository operates in two distinct modes, controlled by the `is_turbo` setting in `src/config.py`. Please decide which mode you need before you begin.
-
-### 1. Standart Mode (`is_turbo = False`)
-*   **Architecture:** Llama-based.
-*   **Tokenizer:** **Grapheme (character) based.** The `tokenizer.json` downloaded by `setup.py` contains a small, efficient vocabulary (~2,454 tokens) covering 23 languages.
-*   **Best for:** Training a model with full control over a specific language from a more fundamental level.
-
-### 2. Turbo Mode (`is_turbo = True`)
-*   **Architecture:** GPT-2 based.
-*   **Tokenizer:** **BPE-based.** It starts with a large, powerful English vocabulary (~50,000+ tokens).
-*   **Smart Merging:** When you run `setup.py`, this large vocabulary is **automatically extended** with our multi-language grapheme set.
-*   **Best for:** Leveraging a strong English base for faster, high-quality fine-tuning on other languages.
-
-
----
-
-## ⚠️ **CRITICAL: Switching Between Training Modes**
-
-If you plan to switch between **Standard Mode** (`is_turbo = False`) and **Turbo Mode** (`is_turbo = True`), you **MUST** completely delete the `pretrained_models` directory and the preprocessed_dir directory created with the `preprocess = True` operation before running the `setup.py` file again.
-
-The setup script replaces the token files in place. If you run the setup for Standard mode after setting up for Turbo (or vice versa), the token files will become corrupted and cause errors that are difficult to debug during training.
-
-**Correct Workflow for Changing Modes:**
-
-1. **DELETE the entire `pretrained_models` folder.**
-
-```bash
-
-# On Linux or macOS
-rm -rf pretrained_models
-
-# On Windows (in Command Prompt)
-rmdir /s /q pretrained_models
-```
-2. **Update** the `src/config.py` file, setting the `is_turbo` flag to your desired new mode and setting preprocess = True if it is False.
-
-3. **RUN setup.py again** to download and prepare the correct files for the new mode.
-
-```bash
-python setup.py
-
-```
-4. **Update** the `new_vocab_size` value in the `src/config.py` file with the new value provided by the setup script. Also ensure preprocess = True.
+This kit intelligently extends the model's vocabulary with multilingual graphemes for maximum performance on Spanish and other languages.
 
 ---
 
@@ -72,23 +21,17 @@ python setup.py
 ## ⚠️ CRITICAL INFORMATION (Please Read)
 
 ### 0. Preprocessing is Mandatory
-This repository uses an **offline preprocessing** strategy to maximize training speed. This script processes all audio files, extracts speaker embeddings and acoustic tokens, and saves them as `.pt` files.
+This repository uses an **offline preprocessing** strategy to maximize training speed. The preprocessing script processes all audio files, extracts speaker embeddings and acoustic tokens, and saves them as `.pt` files.
 
 ### 1. Tokenizer and Vocab Size (Most Important)
-Chatterbox uses a grapheme-based (character-level) tokenizer. The `tokenizer.json` file downloaded by `setup.py` includes support for **23 languages** from the original Chatterbox repository, covering most common characters across multiple languages.
+The Turbo model uses a BPE-based tokenizer that is **automatically extended** with multilingual graphemes during setup.
 
-*   **Default Support:** The provided tokenizer already includes characters for English, Turkish, French, German, Spanish, and 18+ other languages
-*   **When to customize:** If your target language has special characters not covered in the default tokenizer, you can create a custom `tokenizer.json`
-*   **Examples of special characters by language:**
-    *   Turkish: `ç, ğ, ş, ö, ü, ı`
-    *   French: `é, è, ê, à, ù, ç`
-    *   German: `ä, ö, ü, ß`
-    *   Spanish: `ñ, á, é, í, ó, ú`
-*   **Critical:** The `NEW_VOCAB_SIZE` variable in both `src/config.py` AND `inference.py` **must exactly match** the total number of tokens in your `tokenizer.json` file
-*   **Default vocab size:** Check the downloaded `tokenizer.json` to see the exact token count, then set `NEW_VOCAB_SIZE` accordingly
+*   **Default Support:** The merged tokenizer includes characters for Spanish (`ñ, á, é, í, ó, ú, ü, ¿, ¡`) and 22 other languages.
+*   **Language Token:** Text is automatically prefixed with `[es]` for Spanish language processing.
+*   **Critical:** The `new_vocab_size` variable in `src/config.py` **must exactly match** the value output by `setup.py` (typically 52260).
 
 ### 2. Audio Sample Rates
-*   **Training (Input):** Chatterbox's encoder and T3 module work with **16,000 Hz (16kHz)** audio. Even if your dataset uses different rates, `dataset.py` automatically resamples to 16kHz.
+*   **Training (Input):** Chatterbox's encoder and T3 module work with **16,000 Hz (16kHz)** audio. The preprocessing scripts automatically resample to 16kHz.
 *   **Output (Inference):** The model's vocoder generates audio at **24,000 Hz (24kHz)**.
 
 ---
@@ -96,29 +39,29 @@ Chatterbox uses a grapheme-based (character-level) tokenizer. The `tokenizer.jso
 ## 📂 Folder Structure
 
 ```text
-chatterbox-finetune/
+chatterbox-finetuning/
 ├── pretrained_models/                             # setup.py downloads required models here
 │   ├── ve.safetensors
-│   ├── s3gen.safetensors
-│   ├── t3.safetensors
-│   └── tokenizer.json
+│   ├── s3gen_meanflow.safetensors
+│   ├── t3_turbo_v1.safetensors
+│   ├── vocab.json
+│   ├── merges.txt
+│   └── grapheme_mtl_merged_expanded_v1.json
 ├── MyTTSDataset/                                  # Your custom dataset in LJSpeech format
 │   ├── metadata.csv                               # Dataset metadata (file|text|normalized_text)
 │   └── wavs/                                      # Directory containing WAV files
-├── FileBasedDataset/                              # Your custom dataset in LJSpeech format
-│   ├── 0a0bc5d3-f195-464a-8716-d6e01fd4784f.txt   # Dataset metadata (text)
-│   └── 0a0bc5d3-f195-464a-8716-d6e01fd4784f.wav   # WAV files
 ├── speaker_reference/                             # Speaker reference audio files
 │   └── reference.wav                              # Reference audio for voice cloning
 ├── src/
 │   ├── config.py                                  # All settings and hyperparameters
 │   ├── dataset.py                                 # Data loading and processing
 │   ├── model.py                                   # Model weight transfer and training wrapper
-|   ├── preprocess_ljspeech.py                     # Preprocessing script
-|   ├── preprocess_file_based.py                   # Preprocessing script
+│   ├── preprocess_ljspeech.py                     # Preprocessing script for LJSpeech format
+│   ├── preprocess_file_based.py                   # Preprocessing script for file-based format
+│   ├── preprocess_json.py                         # Preprocessing script for JSON format
 │   └── utils.py                                   # Logger and VAD utilities
 ├── train.py                                       # Main training script
-├── inference.py                                   # Speech synthesis script (with VAD support)
+├── inference.py                                   # Speech synthesis script
 ├── setup.py                                       # Setup script for downloading models
 ├── requirements.txt                               # Required dependencies
 └── README.md                                      # This file
@@ -136,102 +79,59 @@ Requires Python 3.8+ and GPU (recommended):
 # on Ubuntu or Debian
 sudo apt update && sudo apt install ffmpeg
 
-# on Arch Linux
-sudo pacman -S ffmpeg
-
-# on MacOS using Homebrew (https://brew.sh/)
+# on macOS using Homebrew
 brew install ffmpeg
 
-# on Windows using Chocolatey (https://chocolatey.org/)
+# on Windows using Chocolatey
 choco install ffmpeg
-
-# on Windows using Scoop (https://scoop.sh/)
-scoop install ffmpeg
 ```
 
 **Install Python Dependencies:**
 ```bash
-
-git clone https://github.com/gokhaneraslan/chatterbox-finetuning.git
-cd chatterbox-finetuning
+git clone https://github.com/groxaxo/chatterbox-finetuning2.git
+cd chatterbox-finetuning2
 
 pip install -r requirements.txt
 ```
 
 
-### 2. Download & Prepare Models (CRITICAL)
-This multi-step process prepares all necessary files based on your chosen mode. This script downloads the necessary base models (`ve`, `s3gen`, `t3`) and default tokenizer. **Must be run before training.**
+### 2. Download & Prepare Models
 
-**Step 2.1: Choose Your Mode**
-Open `src/config.py` and set the `is_turbo` variable to `True` or `False`.
+**Step 2.1: Configure Target Language**
+Open `src/config.py` and set your target language (default is Spanish):
 
 ```python
 # In src/config.py
-is_turbo: bool = True  # Set to True for Turbo, False for Standart```
+target_language: str = "es"  # Spanish
 ```
 
 **Step 2.2: Run the Setup Script**
-This command will download the correct model files. If Turbo mode is enabled, it will also **automatically merge the tokenizers for you.**
+This command downloads the Turbo model files and merges the tokenizers for multilingual support:
 
 ```bash
 python setup.py
 ```
 
-**Step 2.3: Update Config (Turbo Mode ONLY)**
-If you ran the setup in Turbo mode, the script will output a final message like this:
-
+**Step 2.3: Update Vocab Size**
+The setup script will output a message like:
 `Please update the 'new_vocab_size' in 'src/config.py' to the following value: 52260`
 
-Copy this exact number and paste it into the `new_vocab_size` variable in `src/config.py`. **Do not skip this step!**
+Update the `new_vocab_size` in `src/config.py` to match this value.
 
 ---
 
-
-### 3. Configure Environment
-Create a `.env` file or edit `src/config.py` to specify your dataset location and training parameters.
-
----
 
 ## 🏋️ Training (Fine-Tuning)
 
-During training, the script loads the original model weights, **intelligently resizes them** for the new vocabulary size, and initializes new tokens using mean initialization from existing tokens for faster adaptation.
-
 ### 1. Dataset Preparation
 
-#### Option A: Using TTS Dataset Generator (Recommended)
-We recommend using the [TTS Dataset Generator](https://github.com/gokhaneraslan/tts-dataset-generator) tool to automatically create high-quality datasets from audio or video files.
-
-**Quick Start:**
-```bash
-# Install the dataset generator
-git clone https://github.com/gokhaneraslan/tts-dataset-generator.git
-cd tts-dataset-generator
-pip install -r requirements.txt
-
-# Generate dataset from your audio/video file
-python main.py --file your_audio.mp4 --model large --language en --ljspeech True
-```
-
-This will automatically:
-- Segment audio into optimal chunks (3-10 seconds)
-- Transcribe using Whisper AI
-- Generate properly formatted `metadata.csv` and audio files
-- Output directly to `MyTTSDataset/` folder in LJSpeech format
-
-**Benefits:**
-- Saves hours of manual segmentation and transcription
-- Optimizes chunk duration for TTS training
-- Handles multiple languages (en, tr, fr, de, es, etc.)
-- Works with both audio and video files
-
-#### Option B: Manual Dataset Creation
 Your dataset should follow the LJSpeech format with a CSV file:
 `filename|raw_text|normalized_text`
 
-Example `metadata.csv`:
+Example `metadata.csv` for Spanish:
 ```text
-recording_001|Hello world.|hello world
-recording_002|This is a test recording.|this is a test recording
+recording_001|Hola mundo.|hola mundo
+recording_002|Esta es una prueba de grabación.|esta es una prueba de grabación
 ```
 
 Place your dataset in the `MyTTSDataset/` folder:
@@ -249,82 +149,46 @@ MyTTSDataset/
 - Format: WAV (mono or stereo - will be converted to mono automatically)
 - Duration: 3-10 seconds per segment (optimal for TTS)
 - Minimum total duration: 30+ minutes for basic training
-- **Recommended:** 1 hour of clean audio for optimal results
-- Audio quality: Clean, minimal background noise
+- **Recommended:** 1 hour of clean Spanish audio for optimal results
 
 ### 2. Configuration
-**Important:** Ensure the `NEW_VOCAB_SIZE` in **both** `src/config.py` **AND** `inference.py` matches the number of tokens in your custom `tokenizer.json`.
+Adjust key settings in `src/config.py`:
 
-**For non-English languages:**
-1. Create your custom `tokenizer.json` with all characters in your target language
-2. Count the total tokens in your JSON file
-3. Update `NEW_VOCAB_SIZE` in both files to match this count
-
-**Most Important Settings:**
 ```python
-# In src/config.py
-is_turbo: bool = True # Set True if you're training Turbo, False if you're training Normal.
+# Language settings
+target_language: str = "es"  # Spanish
 
-# --- Vocabulary ---
-# The size of the NEW vocabulary (from tokenizer.json)
-# Ensure this matches the JSON file generated by your tokenizer script.
-# For Turbo mode: Use the exact number provided by setup.py (e.g., 52260)
-new_vocab_size: int = 52260 if is_turbo else 2454 
+# Vocabulary (must match setup.py output)
+new_vocab_size: int = 52260
 
-# In inference.py
-NEW_VOCAB_SIZE = 2454  # Must be identical to config.py
+# Training hyperparameters
+batch_size: int = 4         # Adjust based on your GPU VRAM
+learning_rate: float = 1e-5
+num_epochs: int = 100
 ```
 
-Other key parameters to adjust:
+If your dataset is file-based (not LJSpeech format), set:
 ```python
-# Dataset
-DATASET_PATH = "MyTTSDataset"
-METADATA_FILE = "metadata.csv"
-
-# Training
-BATCH_SIZE = 4         # Adjust based on your GPU VRAM
-LEARNING_RATE = 5e-5
-NUM_EPOCHS = 50
+ljspeech = False
 ```
-
-If your dataset is file-based dataset, set ljspeech = False in the configuration file.
-```python
-# In src/config.py
-ljspeech = False  
-
-```
-
-If you have already done the preprocessing process once, set preprocess=False in the config file to avoid doing it again.
-```python
-# In src/config.py
-preprocess = False  
-
-```
-
 
 ### 3. Start Training
 ```bash
 python train.py
 ```
 
-The trained model will be saved as `chatterbox_output/t3_finetuned.safetensors`. The filename will be 
-`t3_turbo_finetuned.safetensors` for Turbo mode.
+The trained model will be saved as `chatterbox_output/t3_turbo_finetuned.safetensors`.
 
 **Training Tips:**
-*   **VRAM:** T3 is a Transformer model with high VRAM usage. For 12GB VRAM, use `batch_size=4`. For lower VRAM, use `batch_size=2` with `grad_accum=32`.
-*   **Mixed Precision:** Code uses `fp16=True` by default for faster training and memory efficiency.
-*   **Checkpointing:** Models are saved every epoch in `chatterbox_output/`.
-*   **Recommended Training Duration:** For optimal results with 1 hour of target speaker audio, train for **150 epochs** or **1000 steps**. This configuration typically produces high-quality voice cloning results.
+*   **VRAM:** For 12GB VRAM, use `batch_size=4`. For lower VRAM, use `batch_size=2` with `grad_accum=32`.
+*   **Mixed Precision:** Uses `bf16=True` by default for faster training and memory efficiency.
+*   **Recommended Duration:** For optimal results with 1 hour of Spanish audio, train for **100-150 epochs**.
 
 ---
 
 ## 🗣️ Inference (Speech Synthesis)
 
-The inference script loads your fine-tuned `.safetensors` file and uses **Silero VAD** to automatically trim unwanted silence/noise at the end of generated audio.
-
-### 1. Prepare Reference Audio (Prompt)
-Chatterbox is a voice cloning/style transfer model. You **must provide a reference `.wav` file** (audio prompt) for inference.
-
+### 1. Prepare Reference Audio
 Place your reference audio in `speaker_reference/`:
 ```text
 speaker_reference/
@@ -333,16 +197,15 @@ speaker_reference/
 
 **Reference Audio Requirements:**
 *   Format: WAV, mono or stereo
-*   Sample rate: Any (will be resampled automatically)
-*   Duration: 3-10 seconds recommended
+*   Duration: 5-10 seconds recommended
 *   Quality: Clean audio with minimal background noise
 
 ### 2. Running Inference
-Edit `inference.py` to set your text and audio prompt paths:
+Edit `inference.py` to set your Spanish text:
 
 ```python
-TEXT_TO_SAY = "This is a test of the fine-tuned model."
-AUDIO_PROMPT = "speaker_reference/reference.wav"
+TEXT_TO_SAY = "Hola, esta es una prueba del modelo afinado para español."
+AUDIO_PROMPT = "./speaker_reference/reference.wav"
 ```
 
 Run inference:
@@ -350,142 +213,71 @@ Run inference:
 python inference.py
 ```
 
-The output will be saved as `output_stitched.wav` (24kHz).
+The output will be saved as `output.wav` (24kHz).
 
-### 3. Advanced Usage
+---
 
-**Multiple Sentences:**
-The script automatically splits long text into sentences for better quality:
-```python
-TEXT_TO_SAY = "Hello! How are you today? This is amazing."
-```
+## 🌐 Supported Languages
 
-**Audio Processing:**
-All audio is automatically processed to mono and resampled to the correct sample rate using FFmpeg. The output format is:
-- **Channels:** Mono (1 channel)
-- **Sample Rate:** 24kHz
-- **Codec:** 16-bit PCM WAV
+The tokenizer supports 23 languages. Set `target_language` in `src/config.py`:
+
+| Code | Language | Code | Language |
+|------|----------|------|----------|
+| ar | Arabic | ms | Malay |
+| da | Danish | nl | Dutch |
+| de | German | no | Norwegian |
+| el | Greek | pl | Polish |
+| en | English | pt | Portuguese |
+| **es** | **Spanish** | ru | Russian |
+| fi | Finnish | sv | Swedish |
+| fr | French | sw | Swahili |
+| he | Hebrew | tr | Turkish |
+| hi | Hindi | zh | Chinese |
+| it | Italian | ko | Korean |
+| ja | Japanese | | |
 
 ---
 
 ## 🛠️ Technical Details
 
-### Why Preprocessing?
-Original Chatterbox training pipelines often process audio "on-the-fly" (resampling, feature extraction) during training. This causes the GPU to wait for the CPU, slowing down training significantly.
-By running `preprocess.py`, we:
-1.  Extract Speaker Embeddings (Voice Encoder)
-2.  Extract Acoustic Tokens (S3Gen)
-3.  Tokenize Text
-4.  Save everything as optimized PyTorch tensors (`.pt`)
-This allows the `dataset.py` to simply load tensors, maximizing GPU utilization.
+### Tokenizer Structure (Turbo Model)
+The Turbo model uses GPT-2's powerful BPE tokenizer as a base. The `setup.py` script performs **Vocab Extension**:
+1. Starts with GPT-2 vocabulary (~50,000 tokens)
+2. Adds multilingual grapheme tokens (Spanish characters like `ñ, á, é, í, ó, ú`)
+3. Adds language tokens like `[es]` for language identification
 
-
-### Tokenizer Structure
-
-**Standart Model Tokenizer:**
-The `pretrained_models/tokenizer.json` file downloaded by `setup.py` includes support for **23 languages** with extensive grapheme coverage. This file is used by `src/chatterbox/tokenizer.py` during both training and inference.
-
-**Turbo Model Tokenizer (Smart Vocab Extension):**
-Turbo mode uses GPT-2's powerful BPE tokenizer as a base. The `setup.py` script performs a **"Vocab Extension"**: it intelligently adds all unique characters from our 23-language grapheme set to the GPT-2 vocabulary. This process ensures that:
-1.  The model retains its powerful knowledge of English words and structures.
-2.  Special characters from other languages (e.g., `ğ, ş, ı` for Turkish; `é, à, ç` for French) are recognized as single, whole tokens, dramatically improving learning efficiency.
-3.  **You do not need to create a custom tokenizer manually.** The setup is fully automated.
-
----
-
-**Default Multi-Language Support:**
-The provided tokenizer already covers common characters from 23 languages, including but not limited to:
-- Latin-based languages (English, French, Spanish, German, Italian, Portuguese)
-- Turkish with special characters (ç, ğ, ı, ö, ş, ü)
-- Eastern European languages
-- And more
-
-**When to Create a Custom Tokenizer:**
-You only need to create a custom tokenizer if:
-1. Your target language has special characters not in the default set
-2. You want to optimize the vocab size for a specific language
-3. You need to add domain-specific symbols or characters
-
-**Creating a Custom Tokenizer (Optional):**
-
-1. **Identify all characters** in your target language:
-   - All letters (including accented/special characters)
-   - Numbers (0-9)
-   - Punctuation marks
-   - Special symbols used in your language
-
-2. **Create the JSON mapping** - Example structure:
-```json
-{
-  "a": 0,
-  "b": 1,
-  "c": 2,
-  "ç": 3,
-  "d": 4,
-  ...
-  " ": 100,
-  ".": 101,
-  ",": 102,
-  ...
-}
-```
-
-3. **Count total tokens** in your JSON file
-
-4. **Update NEW_VOCAB_SIZE** in both `src/config.py` AND `inference.py` to match the token count
-
-5. **Replace** `pretrained_models/tokenizer.json` with your custom file before training
-
-**Vocab Size Examples:**
-- **Default (23 languages):** Check your downloaded `tokenizer.json` for exact count
-- **Custom French:** ~200 tokens (if you want French-only optimization)
-- **Custom German:** ~180 tokens (if you want German-only optimization)
-
-**Important:** The default tokenizer should work for most languages. Only customize if you have specific requirements or encounter missing characters.
+### Language-Aware Text Processing
+For Spanish and other languages:
+1. Text is normalized using NFKD Unicode normalization
+2. Language token `[es]` is prepended to the text
+3. Special Spanish punctuation (¿, ¡) is preserved
 
 ### VAD Integration
-During inference, `inference.py` uses Silero VAD to prevent hallucinations and sentence-ending elongations. This automatically trims unwanted silence and noise from generated audio.
-
-### Audio Processing Pipeline
-All audio processing uses **FFmpeg** for professional-quality results:
-- **Input:** Automatic conversion to mono (1 channel)
-- **Resampling:** Automatic resampling to required sample rates
-- **Training:** 16kHz processing
-- **Output:** 24kHz, 16-bit PCM WAV format
-- **Codec:** `pcm_s16le` (16-bit signed little-endian PCM)
-
-### Model Architecture
-*   **VE (Voice Encoder):** Extracts speaker embeddings from reference audio
-*   **T3 (Text-to-Speech):** Main transformer-based TTS model (this is what you fine-tune)
-*   **S3Gen (Vocoder):** Converts mel-spectrograms to waveforms
+During inference, Silero VAD automatically trims unwanted silence and noise from generated audio.
 
 ---
 
 ## 📝 Troubleshooting
 
 **Error:** `RuntimeError: Error(s) in loading state_dict for T3... size mismatch`
-*   **Solution:** `NEW_VOCAB_SIZE` doesn't match the token count in `tokenizer.json`. 
-*   **Check:** 
-    1. Count tokens in your `tokenizer.json` file
-    2. Verify `NEW_VOCAB_SIZE` in `src/config.py` matches this count
-    3. Verify `NEW_VOCAB_SIZE` in `inference.py` also matches (must be identical)
-*   **Common mistake:** Updating only one file but not the other
+*   **Solution:** `new_vocab_size` doesn't match the tokenizer. Update it to match the value from `setup.py`.
 
 **Error:** `FileNotFoundError: ... ve.safetensors`
-*   **Solution:** You haven't downloaded base models. Run `python setup.py`.
+*   **Solution:** Run `python setup.py` to download base models.
 
 **Error:** `CUDA out of memory`
-*   **Solution:** Reduce `BATCH_SIZE` in `src/config.py` or enable gradient accumulation.
+*   **Solution:** Reduce `batch_size` in `src/config.py` or use gradient accumulation.
 
-**Poor Quality Output:**
-*   Check reference audio quality (should be clean, at least 5 seconds)
-*   Ensure adequate training data (minimum 30 minutes recommended)
+**Poor Quality Spanish Output:**
+*   Ensure your Spanish training data is clean and properly transcribed
+*   Check that `target_language` is set to `"es"`
+*   Verify the reference audio is at least 5 seconds long
 
 ---
 
 ## 🙏 Acknowledgments
 
-Based on the Chatterbox TTS model architecture. Special thanks to the original authors and contributors.
+Based on the Chatterbox TTS model architecture by ResembleAI. Special thanks to the original authors and contributors.
 
 ---
 
@@ -494,4 +286,4 @@ Based on the Chatterbox TTS model architecture. Special thanks to the original a
 For issues and questions:
 1. Check the troubleshooting section above
 2. Review `src/config.py` for configuration options
-3. Open an issue on GitHub with detailed error messages and your setup information
+3. Open an issue on GitHub with detailed error messages
