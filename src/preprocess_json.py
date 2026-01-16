@@ -5,8 +5,7 @@ import torch
 import torchaudio
 from tqdm import tqdm
 
-from src.chatterbox_.tts_turbo import ChatterboxTurboTTS
-from src.chatterbox_.tts import ChatterboxTTS, punc_norm
+from src.chatterbox_.tts_turbo import ChatterboxTurboTTS, punc_norm, preprocess_text_for_language
 from src.chatterbox_.models.s3tokenizer import S3_SR
 from src.utils import setup_logger
 from src.config import TrainConfig
@@ -14,10 +13,11 @@ from src.config import TrainConfig
 logger = setup_logger(__name__)
 
 
-def preprocess_dataset_json_based(config, tts_engine: ChatterboxTTS):
+def preprocess_dataset_json_based(config, tts_engine: ChatterboxTurboTTS):
     
     """
     Reads metadata from JSON file, processes audio-text pairs, and saves them as .pt.
+    Uses Turbo engine with multilingual support for Spanish finetuning.
     Structure:
     - JSON contains: id, text, formatted_text, etc.
     - Audio files: {wav_dir}/{id}.wav
@@ -43,7 +43,8 @@ def preprocess_dataset_json_based(config, tts_engine: ChatterboxTTS):
         logger.error(f"ERROR: No items found in metadata file!")
         return
     
-    logger.info(f"Processing dataset... Found items in JSON: {len(metadata)}")
+    logger.info(f"Processing dataset for language: {config.target_language}")
+    logger.info(f"Found items in JSON: {len(metadata)}")
     
     success_count = 0
     
@@ -98,20 +99,19 @@ def preprocess_dataset_json_based(config, tts_engine: ChatterboxTTS):
                 p_tokens, _ = tts_engine.s3gen.tokenizer(prompt_wav.unsqueeze(0))
                 prompt_tokens = p_tokens.squeeze().cpu()
             
+            # Apply text preprocessing with language support
             clean_text = punc_norm(raw_text)
+            clean_text = preprocess_text_for_language(clean_text, language_id=config.target_language)
             
-            if config.is_turbo:
-                token_output = tts_engine.tokenizer(clean_text, return_tensors="pt")
-                raw_text_tokens = token_output.input_ids[0].cpu()
-                
-                if tts_engine.tokenizer.eos_token_id is not None:
-                    text_eos = torch.tensor([tts_engine.tokenizer.eos_token_id], dtype=raw_text_tokens.dtype)
-                    text_tokens = torch.cat([raw_text_tokens, text_eos], dim=0)
-                else:
-                    text_tokens = raw_text_tokens
+            # Tokenize for Turbo engine
+            token_output = tts_engine.tokenizer(clean_text, return_tensors="pt")
+            raw_text_tokens = token_output.input_ids[0].cpu()
             
+            if tts_engine.tokenizer.eos_token_id is not None:
+                text_eos = torch.tensor([tts_engine.tokenizer.eos_token_id], dtype=raw_text_tokens.dtype)
+                text_tokens = torch.cat([raw_text_tokens, text_eos], dim=0)
             else:
-                text_tokens = tts_engine.tokenizer.text_to_tokens(clean_text).squeeze(0).cpu()
+                text_tokens = raw_text_tokens
             
             save_path = os.path.join(config.preprocessed_dir, f"{file_id}.pt")
             
@@ -131,18 +131,13 @@ def preprocess_dataset_json_based(config, tts_engine: ChatterboxTTS):
     
     logger.info(f"Preprocessing completed! Success: {success_count}/{len(metadata)}")
     
-    
+
 
 if __name__ == "__main__":
 
     cfg = TrainConfig()
     
-    if cfg.is_turbo:
-        EngineClass = ChatterboxTurboTTS
-    else:
-        EngineClass = ChatterboxTTS
-    
-    logger.info(f"{EngineClass} engine starting...")
-    tts_engine = EngineClass.from_local(cfg.model_dir, device="cpu")
+    logger.info(f"ChatterboxTurboTTS engine starting for language: {cfg.target_language}...")
+    tts_engine = ChatterboxTurboTTS.from_local(cfg.model_dir, device="cpu")
     
     preprocess_dataset_json_based(cfg, tts_engine)

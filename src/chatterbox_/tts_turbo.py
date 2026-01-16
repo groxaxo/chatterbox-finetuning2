@@ -2,6 +2,7 @@ import os
 import math
 from dataclasses import dataclass
 from pathlib import Path
+from unicodedata import normalize
 
 import librosa
 import torch
@@ -25,11 +26,39 @@ logger = logging.getLogger(__name__)
 
 REPO_ID = "ResembleAI/chatterbox-turbo"
 
+# Supported languages for the multilingual model
+SUPPORTED_LANGUAGES = {
+  "ar": "Arabic",
+  "da": "Danish",
+  "de": "German",
+  "el": "Greek",
+  "en": "English",
+  "es": "Spanish",
+  "fi": "Finnish",
+  "fr": "French",
+  "he": "Hebrew",
+  "hi": "Hindi",
+  "it": "Italian",
+  "ja": "Japanese",
+  "ko": "Korean",
+  "ms": "Malay",
+  "nl": "Dutch",
+  "no": "Norwegian",
+  "pl": "Polish",
+  "pt": "Portuguese",
+  "ru": "Russian",
+  "sv": "Swedish",
+  "sw": "Swahili",
+  "tr": "Turkish",
+  "zh": "Chinese",
+}
+
 
 def punc_norm(text: str) -> str:
     """
         Quick cleanup func for punctuation from LLMs or
-        containing chars not seen often in the dataset
+        containing chars not seen often in the dataset.
+        Supports multilingual sentence enders for Spanish and other languages.
     """
     if len(text) == 0:
         return "You need to add some text for me to talk."
@@ -43,25 +72,46 @@ def punc_norm(text: str) -> str:
 
     # Replace uncommon/llm punc
     punc_to_replace = [
+        ("...", ", "),
         ("…", ", "),
         (":", ","),
+        (" - ", ", "),
+        (";", ", "),
         ("—", "-"),
         ("–", "-"),
         (" ,", ","),
-        ("“", "\""),
-        ("”", "\""),
-        ("‘", "'"),
-        ("’", "'"),
+        (""", "\""),
+        (""", "\""),
+        ("'", "'"),
+        ("'", "'"),
     ]
     for old_char_sequence, new_char in punc_to_replace:
         text = text.replace(old_char_sequence, new_char)
 
-    # Add full stop if no ending punc
+    # Add full stop if no ending punc (including multilingual sentence enders)
     text = text.rstrip(" ")
-    sentence_enders = {".", "!", "?", "-", ","}
+    sentence_enders = {".", "!", "?", "-", ",", "、", "，", "。", "？", "！", "¡", "¿"}
     if not any(text.endswith(p) for p in sentence_enders):
         text += "."
 
+    return text
+
+
+def preprocess_text_for_language(text: str, language_id: str = None) -> str:
+    """
+    Preprocesses text with language-specific handling.
+    For Spanish and other Latin languages, applies NFKD normalization.
+    """
+    if not text:
+        return text
+    
+    # Apply NFKD normalization for proper Unicode handling
+    text = normalize("NFKD", text)
+    
+    # Prepend language token if specified
+    if language_id and language_id.lower() in SUPPORTED_LANGUAGES:
+        text = f"[{language_id.lower()}]{text}"
+    
     return text
 
 
@@ -128,6 +178,11 @@ class ChatterboxTurboTTS:
         self.device = device
         self.conds = conds
         self.watermarker = perth.PerthImplicitWatermarker()
+
+    @classmethod
+    def get_supported_languages(cls):
+        """Return dictionary of supported language codes and names."""
+        return SUPPORTED_LANGUAGES.copy()
 
     @classmethod
     def from_local(cls, ckpt_dir, device) -> 'ChatterboxTurboTTS':
@@ -260,6 +315,7 @@ class ChatterboxTurboTTS:
         temperature=0.8,
         top_k=1000,
         norm_loudness=True,
+        language_id=None,
     ):
         if audio_prompt_path:
             self.prepare_conditionals(audio_prompt_path, exaggeration=exaggeration, norm_loudness=norm_loudness)
@@ -269,8 +325,17 @@ class ChatterboxTurboTTS:
         if cfg_weight > 0.0 or exaggeration > 0.0 or min_p > 0.0:
             logger.warning("CFG, min_p and exaggeration are not supported by Turbo version and will be ignored.")
 
-        # Norm and tokenize text
+        # Validate language_id if specified
+        if language_id and language_id.lower() not in SUPPORTED_LANGUAGES:
+            supported_langs = ", ".join(SUPPORTED_LANGUAGES.keys())
+            raise ValueError(
+                f"Unsupported language_id '{language_id}'. "
+                f"Supported languages: {supported_langs}"
+            )
+
+        # Norm and tokenize text with language-specific preprocessing
         text = punc_norm(text)
+        text = preprocess_text_for_language(text, language_id=language_id)
         text_tokens = self.tokenizer(text, return_tensors="pt", padding=True, truncation=True)
         text_tokens = text_tokens.input_ids.to(self.device)
 

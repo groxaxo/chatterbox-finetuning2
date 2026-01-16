@@ -4,7 +4,6 @@ import soundfile as sf
 from transformers import TrainerCallback
 from safetensors.torch import load_file
 
-from src.chatterbox_.tts import ChatterboxTTS
 from src.chatterbox_.tts_turbo import ChatterboxTurboTTS
 from src.chatterbox_.models.t3.t3 import T3
 from src.utils import setup_logger, trim_silence_with_vad
@@ -68,11 +67,9 @@ class InferenceCallback(TrainerCallback):
 
         
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        is_turbo = getattr(self.config, "is_turbo", False)
+        target_language = getattr(self.config, "target_language", "es")
         
-        EngineClass = ChatterboxTurboTTS if is_turbo else ChatterboxTTS
-        
-        tts_engine = EngineClass.from_local(self.config.model_dir, device="cpu")
+        tts_engine = ChatterboxTurboTTS.from_local(self.config.model_dir, device="cpu")
         
         t3_config = tts_engine.t3.hp
         if hasattr(self.config, 'new_vocab_size'):
@@ -80,10 +77,9 @@ class InferenceCallback(TrainerCallback):
         
         new_t3 = T3(hp=t3_config)
         
-
-        if is_turbo:
-            if hasattr(new_t3.tfmr, "wte"):
-                del new_t3.tfmr.wte
+        # Remove WTE layer for Turbo mode
+        if hasattr(new_t3.tfmr, "wte"):
+            del new_t3.tfmr.wte
 
 
         if checkpoint_path.endswith(".safetensors"):
@@ -140,12 +136,8 @@ class InferenceCallback(TrainerCallback):
         params = {
             "temperature": 0.8,
             "repetition_penalty": 1.2,
+            "language_id": target_language,
         }
-
-
-        if not is_turbo:
-            params["cfg_weight"] = 0.2
-            params["exaggeration"]= 1.2,
 
 
         with torch.no_grad():
