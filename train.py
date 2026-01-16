@@ -14,7 +14,6 @@ from src.utils import setup_logger, check_pretrained_models
 
 from src.inference_callback import InferenceCallback
 
-from src.chatterbox_.tts import ChatterboxTTS
 from src.chatterbox_.tts_turbo import ChatterboxTurboTTS
 from src.chatterbox_.models.t3.t3 import T3
 
@@ -27,34 +26,27 @@ def main():
     
     cfg = TrainConfig()
     
-    logger.info("--- Starting Chatterbox Finetuning ---")
-    logger.info(f"Mode: {'CHATTERBOX-TURBO' if cfg.is_turbo else 'CHATTERBOX-TTS'}")
+    logger.info("--- Starting Chatterbox Turbo Finetuning ---")
+    logger.info(f"Target Language: {cfg.target_language}")
 
     # 0. CHECK MODEL FILES
-    mode_check = "chatterbox_turbo" if cfg.is_turbo else "chatterbox"
-    if not check_pretrained_models(mode=mode_check):
+    if not check_pretrained_models(mode="chatterbox_turbo"):
         sys.exit(1)
     
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    # 1. SELECT THE CORRECT ENGINE CLASS
-    if cfg.is_turbo:
-        EngineClass = ChatterboxTurboTTS
-    else:
-        EngineClass = ChatterboxTTS
-    
     logger.info(f"Device: {device}")
     logger.info(f"Model Directory: {cfg.model_dir}")
 
-    # 2. LOAD ORIGINAL MODEL TEMPORARILY
-    logger.info("Loading original model to extract weights...")
+    # 1. LOAD ORIGINAL MODEL TEMPORARILY
+    logger.info("Loading original Turbo model to extract weights...")
     # Loading on CPU first to save VRAM
-    tts_engine_original = EngineClass.from_local(cfg.model_dir, device="cpu")
+    tts_engine_original = ChatterboxTurboTTS.from_local(cfg.model_dir, device="cpu")
 
     pretrained_t3_state_dict = tts_engine_original.t3.state_dict()
     original_t3_config = tts_engine_original.t3.hp
 
-    # 3. CREATE NEW T3 MODEL WITH NEW VOCAB SIZE
+    # 2. CREATE NEW T3 MODEL WITH NEW VOCAB SIZE
     logger.info(f"Creating new T3 model with vocab size: {cfg.new_vocab_size}")
     
     new_t3_config = original_t3_config
@@ -68,25 +60,22 @@ def main():
 
     new_t3_model = T3(hp=new_t3_config)
 
-    # 4. TRANSFER WEIGHTS
+    # 3. TRANSFER WEIGHTS
     logger.info("Transferring weights...")
     new_t3_model = resize_and_load_t3_weights(new_t3_model, pretrained_t3_state_dict)
 
-
-    # --- SPECIAL SETTING FOR TURBO ---
-    if cfg.is_turbo:
-        logger.info("Turbo Mode: Removing backbone WTE layer...")
-        if hasattr(new_t3_model.tfmr, "wte"):
-            del new_t3_model.tfmr.wte
-
+    # Remove backbone WTE layer (required for Turbo mode)
+    logger.info("Turbo Mode: Removing backbone WTE layer...")
+    if hasattr(new_t3_model.tfmr, "wte"):
+        del new_t3_model.tfmr.wte
 
     # Clean up memory
     del tts_engine_original
     del pretrained_t3_state_dict
 
-    # 5. PREPARE ENGINE FOR TRAINING
+    # 4. PREPARE ENGINE FOR TRAINING
     # Reload engine components (VoiceEncoder, S3Gen) but inject our new T3
-    tts_engine_new = EngineClass.from_local(cfg.model_dir, device="cpu")
+    tts_engine_new = ChatterboxTurboTTS.from_local(cfg.model_dir, device="cpu")
     tts_engine_new.t3 = new_t3_model 
 
     # Freeze other components
@@ -119,7 +108,7 @@ def main():
         logger.info("Skipping the preprocessing dataset step...")
             
         
-    # 6. DATASET & WRAPPER
+    # 5. DATASET & WRAPPER
     logger.info("Initializing Dataset...")
     train_ds = ChatterboxDataset(cfg)
     
@@ -131,7 +120,7 @@ def main():
     
     model_wrapper = ChatterboxTrainerWrapper(tts_engine_new.t3)
 
-    # 7. TRAINING ARGUMENTS
+    # 6. TRAINING ARGUMENTS
     training_args = TrainingArguments(
         output_dir=cfg.output_dir,
         per_device_train_batch_size=cfg.batch_size,
@@ -162,12 +151,11 @@ def main():
     trainer.train()
 
 
-    # 8. SAVE FINAL MODEL
+    # 7. SAVE FINAL MODEL
     logger.info("Training complete. Saving model...")
     os.makedirs(cfg.output_dir, exist_ok=True)
     
-    filename = "t3_turbo_finetuned.safetensors" if cfg.is_turbo else "t3_finetuned.safetensors"
-    final_model_path = os.path.join(cfg.output_dir, filename)
+    final_model_path = os.path.join(cfg.output_dir, "t3_turbo_finetuned.safetensors")
 
     save_file(tts_engine_new.t3.state_dict(), final_model_path)
     logger.info(f"Model saved to: {final_model_path}")

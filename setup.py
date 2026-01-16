@@ -9,6 +9,7 @@ from src.config import TrainConfig
 
 DEST_DIR = "pretrained_models"
  
+# Turbo model files with multilingual support
 CHATTERBOX_TURBO_FILES = {
     "ve.safetensors": "https://huggingface.co/ResembleAI/chatterbox-turbo/resolve/main/ve.safetensors?download=true",
     "t3_turbo_v1.safetensors": "https://huggingface.co/ResembleAI/chatterbox-turbo/resolve/main/t3_turbo_v1.safetensors?download=true",
@@ -22,14 +23,6 @@ CHATTERBOX_TURBO_FILES = {
     "grapheme_mtl_merged_expanded_v1.json": "https://huggingface.co/ResembleAI/chatterbox/resolve/main/grapheme_mtl_merged_expanded_v1.json?download=true"
 }
 
-
-CHATTERBOX_FILES = {
-    "ve.safetensors": "https://huggingface.co/ResembleAI/chatterbox/resolve/main/ve.safetensors?download=true",
-    "t3_cfg.safetensors": "https://huggingface.co/ResembleAI/chatterbox/resolve/main/t3_cfg.safetensors?download=true",
-    "s3gen.safetensors": "https://huggingface.co/ResembleAI/chatterbox/resolve/main/s3gen.safetensors?download=true",
-    "conds.pt": "https://huggingface.co/ResembleAI/chatterbox/resolve/main/conds.pt?download=true",
-    "tokenizer.json": "https://huggingface.co/ResembleAI/chatterbox/resolve/main/grapheme_mtl_merged_expanded_v1.json?download=true"
-}
 
 def download_file(url, dest_path):
     """Downloads a file from a URL to a specific destination with a progress bar."""
@@ -72,10 +65,10 @@ def download_file(url, dest_path):
 
 def merge_and_save_turbo_tokenizer():
     """
-    It combines the downloaded original GPT-2 tokenizer with our custom vocab
-    and overwrites the original files.
+    Combines the GPT-2 tokenizer with the multilingual grapheme vocab.
+    This enables Spanish and other language support for the Turbo model.
     """
-    print("\n--- Turbo Vocab Merging Begins ---")
+    print("\n--- Turbo Vocab Merging for Multilingual Support ---")
     
     try:
         base_tokenizer = AutoTokenizer.from_pretrained("gpt2-medium")
@@ -85,12 +78,12 @@ def merge_and_save_turbo_tokenizer():
         
         
     initial_len = len(base_tokenizer)
-    print(f"   Original Size: {initial_len}")
+    print(f"   Original GPT-2 Size: {initial_len}")
 
 
     custom_vocab_path = os.path.join(DEST_DIR, "grapheme_mtl_merged_expanded_v1.json")
     
-    print(f"Loading: Custom Vocab ({custom_vocab_path})")
+    print(f"Loading: Multilingual Grapheme Vocab ({custom_vocab_path})")
     
     with open(custom_vocab_path, 'r', encoding='utf-8') as f:
         custom_data = json.load(f)
@@ -107,8 +100,8 @@ def merge_and_save_turbo_tokenizer():
     added_count = base_tokenizer.add_tokens(unique_tokens_to_add)
     final_len = len(base_tokenizer)
 
-    print(f"Merging: {added_count} new token added.")
-    print(f"   New Dimension: {final_len}")
+    print(f"Merging: {added_count} multilingual tokens added (including Spanish characters).")
+    print(f"   New Vocab Size: {final_len}")
 
 
     print(f"Saving: Writing the combined tokenizer to the '{DEST_DIR}' folder...")
@@ -130,13 +123,14 @@ def test_merge_tokenizer_process(tokenizer_path):
         print(f"Folder: {tokenizer_path}")
         print(f"Actual Vocab Size (len): {len(tok)}")
 
-        test_token = "[ta]"
+        # Test Spanish character
+        test_token = "[es]"
         test_id = tok.encode(test_token, add_special_tokens=False)
         
         print(f"Test Token '{test_token}' ID: {test_id}")
         
         if len(tok) > 50276:
-            print("SUCCESS! New tokens have been added.")
+            print("SUCCESS! Multilingual tokens have been added.")
             
         else:
             print("ERROR: The size still appears old.")
@@ -150,7 +144,10 @@ def test_merge_tokenizer_process(tokenizer_path):
 
 def main():
     
-    print("--- Chatterbox Pretrained Model Setup ---\n")
+    cfg = TrainConfig()
+    
+    print("--- Chatterbox Turbo Setup for Spanish Finetuning ---\n")
+    print(f"Target Language: {cfg.target_language}")
     
     # 1. Create the directory if it doesn't exist
     if not os.path.exists(DEST_DIR):
@@ -160,40 +157,24 @@ def main():
         
     else:
         print(f"Directory found: {DEST_DIR}")
-        
 
-    cfg = TrainConfig()
-
-    if cfg.is_turbo:
-        print(f"Mode: CHATTERBOX-TURBO (Checking {len(CHATTERBOX_TURBO_FILES)} files)")
-        FILES_TO_DOWNLOAD = CHATTERBOX_TURBO_FILES
-        
-    else:
-        print(f"Mode: CHATTERBOX-TTS (Checking {len(CHATTERBOX_FILES)} files)")
-        FILES_TO_DOWNLOAD = CHATTERBOX_FILES
+    print(f"Mode: CHATTERBOX-TURBO (Checking {len(CHATTERBOX_TURBO_FILES)} files)")
 
     # 2. Download files
-    for filename, url in FILES_TO_DOWNLOAD.items():
+    for filename, url in CHATTERBOX_TURBO_FILES.items():
         dest_path = os.path.join(DEST_DIR, filename)
         download_file(url, dest_path)
 
-    if cfg.is_turbo:
-        new_vocab_size = merge_and_save_turbo_tokenizer()
-        if new_vocab_size > 0:
-            
-            #test_merge_tokenizer_process(DEST_DIR)
-
-            print("\n" + "="*60)
-            print("INSTALLATION COMPLETE (CHATTERBOX-TURBO MODE)")
-            print("All models are set up in 'pretrained_models/' folder.")
-            print(f"Please update the 'new_vocab_size' value in the 'src/config.py' file")
-            print(f"to: {new_vocab_size}")
-            print("="*60 + "\n")
-
-    else:
-        print("\nINSTALLATION COMPLETE (CHATTERBOX-TTS MOD)")
+    # 3. Merge tokenizers for multilingual support
+    new_vocab_size = merge_and_save_turbo_tokenizer()
+    if new_vocab_size > 0:
+        
+        print("\n" + "="*60)
+        print("INSTALLATION COMPLETE (CHATTERBOX-TURBO MODE)")
         print("All models are set up in 'pretrained_models/' folder.")
-        print(f"Note: 'grapheme_mtl_merged_expanded_v1.json' was saved as 'tokenizer.json' for the new vocabulary.")
+        print(f"Please update the 'new_vocab_size' value in the 'src/config.py' file")
+        print(f"to: {new_vocab_size}")
+        print("="*60 + "\n")
 
 
 
