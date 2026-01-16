@@ -6,7 +6,7 @@
 >
 > *   **Architecture:** GPT-2 based Turbo model with fast, high-quality speech synthesis.
 > *   **Multilingual Tokenizer:** The setup script **automatically merges** Turbo's large English vocabulary with the 23-language grapheme set, enabling proper Spanish character handling.
-> *   **Language-Aware Processing:** Text is preprocessed with NFKD normalization and language tokens (e.g., `[es]`) for optimal Spanish synthesis.
+> *   **Language-Aware Processing:** Text is preprocessed with NFC normalization and language tokens (e.g., `[es]`) for optimal Spanish synthesis.
 
 
 ---
@@ -248,9 +248,11 @@ The Turbo model uses GPT-2's powerful BPE tokenizer as a base. The `setup.py` sc
 
 ### Language-Aware Text Processing
 For Spanish and other languages:
-1. Text is normalized using NFKD Unicode normalization
-2. Language token `[es]` is prepended to the text
+1. Text is normalized using **NFC** Unicode normalization (preserves composed characters like ñ)
+2. Language token `[es]` is prepended to the text (as a single token)
 3. Special Spanish punctuation (¿, ¡) is preserved
+
+**Note:** NFC is preferred over NFKD for Spanish because NFKD decomposes characters (e.g., `ñ` → `n` + combining tilde), which can harm pronunciation consistency.
 
 ### VAD Integration
 During inference, Silero VAD automatically trims unwanted silence and noise from generated audio.
@@ -259,8 +261,17 @@ During inference, Silero VAD automatically trims unwanted silence and noise from
 
 ## 📝 Troubleshooting
 
+**Run the sanity check script first:**
+```bash
+python sanity_check.py
+```
+This script validates tokenizer/model compatibility and checks Spanish character handling.
+
 **Error:** `RuntimeError: Error(s) in loading state_dict for T3... size mismatch`
 *   **Solution:** `new_vocab_size` doesn't match the tokenizer. Update it to match the value from `setup.py`.
+
+**Error:** `CRITICAL: Tokenizer/Model vocab size mismatch`
+*   **Solution:** The tokenizer and model have different vocabulary sizes. Run `python sanity_check.py` to diagnose, then update `new_vocab_size` in `src/config.py`.
 
 **Error:** `FileNotFoundError: ... ve.safetensors`
 *   **Solution:** Run `python setup.py` to download base models.
@@ -268,10 +279,14 @@ During inference, Silero VAD automatically trims unwanted silence and noise from
 **Error:** `CUDA out of memory`
 *   **Solution:** Reduce `batch_size` in `src/config.py` or use gradient accumulation.
 
+**Warning:** `Language tag '[es]' is tokenized into multiple tokens`
+*   **Solution:** Re-run `python setup.py` to regenerate the tokenizer with proper language tokens.
+
 **Poor Quality Spanish Output:**
 *   Ensure your Spanish training data is clean and properly transcribed
 *   Check that `target_language` is set to `"es"`
 *   Verify the reference audio is at least 5 seconds long
+*   Run `python sanity_check.py` to verify tokenizer handles Spanish characters correctly
 
 ---
 

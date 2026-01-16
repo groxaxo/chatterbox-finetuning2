@@ -100,13 +100,15 @@ def punc_norm(text: str) -> str:
 def preprocess_text_for_language(text: str, language_id: str = None) -> str:
     """
     Preprocesses text with language-specific handling.
-    For Spanish and other Latin languages, applies NFKD normalization.
+    Uses NFC normalization which preserves composed characters (e.g., ñ stays as ñ).
+    NFKD decomposes characters which can harm pronunciation consistency.
     """
     if not text:
         return text
     
-    # Apply NFKD normalization for proper Unicode handling
-    text = normalize("NFKD", text)
+    # Apply NFC normalization - safer for Spanish and other languages
+    # NFC composes characters (ñ stays as ñ), unlike NFKD which decomposes them
+    text = normalize("NFC", text)
     
     # Prepend language token if specified
     if language_id:

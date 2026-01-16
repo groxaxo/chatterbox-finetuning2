@@ -10,7 +10,7 @@ from src.model import resize_and_load_t3_weights, ChatterboxTrainerWrapper
 from src.preprocess_ljspeech import preprocess_dataset_ljspeech
 from src.preprocess_file_based import preprocess_dataset_file_based
 from src.preprocess_json import preprocess_dataset_json_based
-from src.utils import setup_logger, check_pretrained_models
+from src.utils import setup_logger, check_pretrained_models, validate_vocab_size, validate_language_token
 
 from src.inference_callback import InferenceCallback
 
@@ -77,6 +77,11 @@ def main():
     # Reload engine components (VoiceEncoder, S3Gen) but inject our new T3
     tts_engine_new = ChatterboxTurboTTS.from_local(cfg.model_dir, device="cpu")
     tts_engine_new.t3 = new_t3_model 
+
+    # 4.1 VALIDATE TOKENIZER/MODEL COMPATIBILITY
+    logger.info("Validating tokenizer and model compatibility...")
+    validate_vocab_size(tts_engine_new.tokenizer, cfg.new_vocab_size, logger)
+    validate_language_token(tts_engine_new.tokenizer, cfg.target_language, logger)
 
     # Freeze other components
     logger.info("Freezing S3Gen and VoiceEncoder...")
